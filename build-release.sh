@@ -2,11 +2,14 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # RadioBar – Release-Build mit Signierung und Notarisierung
 #
-# Einmalige Vorbereitung (einmal im Terminal ausführen):
-#   xcrun notarytool store-credentials "radiobar-notarize" \
-#       --apple-id "info@aketo.de" \
-#       --team-id  "9H7F5NMT97"
-#   → Passwort interaktiv eingeben (app-spezifisches Passwort von appleid.apple.com)
+# Voraussetzungen:
+#   1. Developer ID Application Certificate im Schlüsselbund
+#      → developer.apple.com → Certificates → Developer ID Application
+#
+#   2. Credentials einmalig speichern (interaktive Passworteingabe):
+#      xcrun notarytool store-credentials "radiobar-notarize" \
+#          --apple-id "du@example.com" \
+#          --team-id  "DEINE_TEAM_ID"
 #
 # Danach einfach aufrufen:
 #   ./build-release.sh
@@ -18,7 +21,17 @@ BUNDLE="$APP.app"
 ZIP="$APP-notarize.zip"
 ENTITLEMENTS="RadioBar.entitlements"
 KEYCHAIN_PROFILE="radiobar-notarize"
-IDENTITY="Developer ID Application: aketo GmbH (9H7F5NMT97)"
+
+# Zertifikat automatisch aus dem Schlüsselbund ermitteln
+IDENTITY=$(security find-identity -v -p codesigning \
+           | grep "Developer ID Application" \
+           | head -1 | awk -F'"' '{print $2}')
+
+if [ -z "$IDENTITY" ]; then
+    echo "✗ Kein 'Developer ID Application'-Zertifikat im Schlüsselbund gefunden."
+    exit 1
+fi
+echo "  Zertifikat: $IDENTITY"
 
 # ── Kompilieren ────────────────────────────────────────────────────────────────
 echo "▶ Kompiliere (release)..."
