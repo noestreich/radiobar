@@ -124,22 +124,32 @@ struct StationSearchView: View {
 
             // Footer
             HStack {
-                Label(
-                    "API-Key: " + String(service.apiKey.prefix(6)) + "••••",
-                    systemImage: "key"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                if service.hasBundledKey && KeychainHelper.loadAPIKey() == nil {
+                    Label("Bundled API-Key aktiv", systemImage: "key.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label(
+                        "API-Key: " + String(service.apiKey.prefix(6)) + "••••",
+                        systemImage: "key"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
 
                 Spacer()
 
-                Button("Key ändern") {
-                    service.clearAPIKey()
-                    apiKeyDraft = ""
+                // "Key ändern" nur anzeigen, wenn ein manueller Key gespeichert ist
+                // oder kein Bundled Key existiert (reiner Source-Build-User)
+                if !service.hasBundledKey || KeychainHelper.loadAPIKey() != nil {
+                    Button("Key ändern") {
+                        service.clearAPIKey()
+                        apiKeyDraft = ""
+                    }
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

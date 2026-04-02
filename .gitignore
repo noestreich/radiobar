@@ -2,3 +2,4 @@
 *.zip
 RadioBar.app/
 .DS_Store
+.env

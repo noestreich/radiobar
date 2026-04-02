@@ -33,9 +33,30 @@ if [ -z "$IDENTITY" ]; then
 fi
 echo "  Zertifikat: $IDENTITY"
 
+# ── StreamURL API-Key einbetten (optional) ────────────────────────────────────
+BUNDLED_KEY_FILE="Sources/RadioBar/BundledKey.swift"
+# Originaldatei merken (leerer Fallback, der im Repo liegt)
+ORIGINAL_KEY_FILE=$(cat "$BUNDLED_KEY_FILE")
+
+if [ -n "$STREAMURL_API_KEY" ]; then
+    echo "  StreamURL API-Key: wird eingebettet..."
+    printf 'internal let _bundledStreamURLKey = "%s"\n' "$STREAMURL_API_KEY" > "$BUNDLED_KEY_FILE"
+else
+    echo "  StreamURL API-Key: nicht gesetzt (manuelle Eingabe erforderlich)"
+fi
+
 # ── Kompilieren ────────────────────────────────────────────────────────────────
 echo "▶ Kompiliere (release)..."
 swift build -c release 2>&1
+BUILD_EXIT=$?
+
+# Originaldatei sofort wiederherstellen (Key bleibt nur in der Binary, nie auf Disk)
+printf '%s\n' "$ORIGINAL_KEY_FILE" > "$BUNDLED_KEY_FILE"
+
+if [ $BUILD_EXIT -ne 0 ]; then
+    echo "✗ Build fehlgeschlagen."
+    exit $BUILD_EXIT
+fi
 
 # ── Bundle zusammenstellen ─────────────────────────────────────────────────────
 echo "▶ Erstelle App-Bundle..."

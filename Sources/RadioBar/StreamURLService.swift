@@ -66,9 +66,9 @@ final class StreamURLService: ObservableObject {
 
     // MARK: Published
 
-    @Published var apiKey     = ""
-    @Published var query      = ""
-    @Published var results:   [SURLStation] = []
+    @Published var apiKey      = ""
+    @Published var query       = ""
+    @Published var results:    [SURLStation] = []
     @Published var isSearching = false
     @Published var errorMessage: String?
 
@@ -83,10 +83,21 @@ final class StreamURLService: ObservableObject {
         return d
     }()
 
+    // MARK: – Bundled key (injected by build-release.sh, empty in source builds)
+
+    private static let bundledKey = _bundledStreamURLKey
+
+    /// True when a key was embedded at build time (release download).
+    var hasBundledKey: Bool { !Self.bundledKey.isEmpty }
+
+    /// True when any key is active (bundled or user-entered).
+    var hasAnyKey: Bool { !apiKey.isEmpty }
+
     // MARK: Init
 
     init() {
-        apiKey = KeychainHelper.loadAPIKey() ?? ""
+        // Priority: 1. Keychain (user-entered)  2. Bundled (release build)  3. Empty
+        apiKey = KeychainHelper.loadAPIKey() ?? Self.bundledKey
         installDebounce()
     }
 
@@ -100,7 +111,8 @@ final class StreamURLService: ObservableObject {
 
     func clearAPIKey() {
         KeychainHelper.deleteAPIKey()
-        apiKey = ""
+        // Fall back to bundled key (if available) rather than empty string
+        apiKey  = Self.bundledKey
         results = []
         query   = ""
     }
