@@ -23,7 +23,8 @@ struct SettingsView: View {
 private struct StationsTab: View {
     @EnvironmentObject var store: StationStore
     @State private var editing: Station? = nil
-    @State private var isAdding = false
+    @State private var isAdding    = false
+    @State private var isSearching = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -46,10 +47,16 @@ private struct StationsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Sender suchen…") { isSearching = true }
+                    .buttonStyle(.bordered)
                 Button("Sender hinzufügen") { isAdding = true }
                     .buttonStyle(.borderedProminent)
             }
             .padding(12)
+        }
+        .sheet(isPresented: $isSearching) {
+            StationSearchView()
+                .environmentObject(store)
         }
         .sheet(item: $editing) { station in
             EditStationSheet(
