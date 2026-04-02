@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var settingsWindow: NSWindow?        // selbst verwaltetes Einstellungsfenster
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: – Launch
@@ -22,6 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
         observeState()
         setupHotkeys()
+
+        // Notification von RadioBarApp (⌘,) und aus dem Popover empfangen
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(openSettings),
+            name: .radioBarOpenSettings,
+            object: nil
+        )
     }
 
     // MARK: – Status bar
@@ -140,7 +149,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        if popover.isShown { popover.performClose(nil) }
+
+        // Fenster lazy erzeugen – bleibt danach im Speicher (isReleasedWhenClosed = false),
+        // sodass wiederholtes Öffnen nur makeKeyAndOrderFront braucht.
+        if settingsWindow == nil {
+            let view = SettingsView()
+                .environmentObject(store)
+                .environmentObject(player)
+                .environmentObject(hotkeys)
+            let vc = NSHostingController(rootView: view)
+            let win = NSWindow(contentViewController: vc)
+            win.title = "Einstellungen"
+            win.styleMask = [.titled, .closable, .miniaturizable]
+            win.isReleasedWhenClosed = false
+            // Titelleiste transparent → verschmilzt mit dem windowBackground der View
+            win.titlebarAppearsTransparent = true
+            win.backgroundColor = .windowBackgroundColor
+            // Trennlinie zwischen Titelbereich und Inhalt entfernen
+            win.titlebarSeparatorStyle = .none
+            win.center()
+            settingsWindow = win
+        }
+
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 

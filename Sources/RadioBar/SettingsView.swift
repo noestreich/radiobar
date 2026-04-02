@@ -14,7 +14,11 @@ struct SettingsView: View {
             HotkeysTab()
                 .tabItem { Label("Tastenkürzel", systemImage: "keyboard") }
         }
-        .frame(width: 520, height: 400)
+        .frame(width: 540, height: 430)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .padding(.top, 8)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 

@@ -4,6 +4,7 @@ struct PopoverView: View {
     @EnvironmentObject var store:  StationStore
     @EnvironmentObject var player: RadioPlayer
 
+
     var body: some View {
         VStack(spacing: 0) {
             stationList
@@ -98,6 +99,16 @@ struct PopoverView: View {
             .buttonStyle(.plain)
 
             Spacer()
+
+            Button {
+                NotificationCenter.default.post(name: .radioBarOpenSettings, object: nil)
+            } label: {
+                Image(systemName: "gear")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Einstellungen öffnen (⌘,)")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
