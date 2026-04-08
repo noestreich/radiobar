@@ -55,6 +55,11 @@ struct PopoverView: View {
                 .lineLimit(2)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
+                .help("Klicken zum Kopieren")
+                .onTapGesture {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(title, forType: .string)
+                }
         }
     }
 

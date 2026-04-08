@@ -5,10 +5,14 @@ import Combine
 final class StationStore: ObservableObject {
     @Published var stations: [Station] = []
     @Published var currentStationId: UUID?
+    @Published var autostartEnabled: Bool {
+        didSet { UserDefaults.standard.set(autostartEnabled, forKey: "radiobar_autostart") }
+    }
 
     private let key = "radiobar_stations"
 
     init() {
+        autostartEnabled = UserDefaults.standard.bool(forKey: "radiobar_autostart")
         load()
         if stations.isEmpty {
             stations = [

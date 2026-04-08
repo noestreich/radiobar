@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: .radioBarOpenSettings,
             object: nil
         )
+
+        // Autostart: ersten Sender abspielen wenn aktiviert
+        if store.autostartEnabled, let first = store.stations.first {
+            store.currentStationId = first.id
+            player.play(station: first)
+        }
     }
 
     // MARK: – Status bar
@@ -129,19 +135,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleMute()   { player.toggleMute() }
     @objc private func stopPlayback() { player.stop(); store.currentStationId = nil }
     private func setupHotkeys() {
-        hotkeys.onMute  = { [weak self] in self?.player.toggleMute() }
-        hotkeys.onCycle = { [weak self] in self?.cycleStation() }
+        hotkeys.onMute       = { [weak self] in self?.player.toggleMute() }
+        hotkeys.onCycle      = { [weak self] in self?.cycleStation(forward: true) }
+        hotkeys.onCycleBack  = { [weak self] in self?.cycleStation(forward: false) }
+        hotkeys.onVolumeUp   = { [weak self] in
+            guard let self else { return }
+            let newVol = min(1.0, player.volume + 0.05)
+            player.setVolume(newVol)
+        }
+        hotkeys.onVolumeDown = { [weak self] in
+            guard let self else { return }
+            let newVol = max(0.0, player.volume - 0.05)
+            player.setVolume(newVol)
+        }
+
+        // Sender-Hotkeys initial registrieren und bei Änderungen aktualisieren
+        rebuildStationHotkeys()
+        store.$stations
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.rebuildStationHotkeys() }
+            .store(in: &cancellables)
     }
 
-    func cycleStation() {
+    private func rebuildStationHotkeys() {
+        hotkeys.updateStationHotkeys(stations: store.stations)
+        // Callbacks neu verdrahten (IDs können sich durch Re-Registrierung verschieben)
+        hotkeys.onStation.removeAll()
+        for station in store.stations {
+            guard station.hotkeyConfig?.isEnabled == true else { continue }
+            let sid = station.id.uuidString
+            hotkeys.onStation[sid] = { [weak self] in
+                guard let self else { return }
+                store.currentStationId = station.id
+                player.play(station: station)
+            }
+        }
+    }
+
+    func cycleStation(forward: Bool = true) {
         let stations = store.stations
         guard !stations.isEmpty else { return }
         let nextIndex: Int
         if let currentId = store.currentStationId,
            let currentIndex = stations.firstIndex(where: { $0.id == currentId }) {
-            nextIndex = (currentIndex + 1) % stations.count
+            nextIndex = forward
+                ? (currentIndex + 1) % stations.count
+                : (currentIndex - 1 + stations.count) % stations.count
         } else {
-            nextIndex = 0
+            nextIndex = forward ? 0 : stations.count - 1
         }
         let next = stations[nextIndex]
         store.currentStationId = next.id

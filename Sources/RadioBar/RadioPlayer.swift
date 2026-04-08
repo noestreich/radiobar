@@ -17,6 +17,13 @@ final class RadioPlayer: NSObject, ObservableObject {
     private var statusObserver: NSKeyValueObservation?
     private var metadataCancellable: AnyCancellable?
 
+    /// Lautstärken pro Sender-ID, persistent in UserDefaults.
+    private var volumePerStation: [String: Float] {
+        get { UserDefaults.standard.dictionary(forKey: "radiobar_volumes") as? [String: Float] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "radiobar_volumes") }
+    }
+    private var currentStationID: String?
+
     override init() {
         super.init()
         setupMediaKeys()
@@ -29,8 +36,22 @@ final class RadioPlayer: NSObject, ObservableObject {
     // MARK: – Playback control
 
     func play(station: Station) {
+        // Lautstärke des aktuellen Senders sichern bevor gewechselt wird
+        if let id = currentStationID {
+            var vols = volumePerStation
+            vols[id] = volume
+            volumePerStation = vols
+        }
+
         stop()
         guard let url = URL(string: station.url) else { return }
+
+        // Gespeicherte Lautstärke des neuen Senders laden (Fallback: aktuelle)
+        let stationID = station.id.uuidString
+        currentStationID = stationID
+        if let saved = volumePerStation[stationID] {
+            volume = saved
+        }
 
         let item = AVPlayerItem(url: url)
         attachMetadataOutput(to: item)
@@ -74,6 +95,12 @@ final class RadioPlayer: NSObject, ObservableObject {
     func setVolume(_ v: Float) {
         volume = v
         if !isMuted { player?.volume = v }
+        // Direkt persistieren damit auch manuelle Slider-Änderungen gespeichert werden
+        if let id = currentStationID {
+            var vols = volumePerStation
+            vols[id] = v
+            volumePerStation = vols
+        }
     }
 
     // MARK: – HLS / timed metadata (for streams that provide it via AVFoundation)

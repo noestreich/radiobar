@@ -32,6 +32,20 @@ private struct StationsTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Toggle(isOn: $store.autostartEnabled) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Beim Start automatisch spielen")
+                    Text("Startet den ersten Sender in der Liste beim Öffnen der App")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+
+            Divider()
+
             List {
                 ForEach(store.stations) { station in
                     StationListRow(station: station) {
@@ -67,10 +81,12 @@ private struct StationsTab: View {
                 title: "Sender bearbeiten",
                 initialName: station.name,
                 initialURL: station.url,
-                initialColorHex: station.colorHex
-            ) { name, url, colorHex in
+                initialColorHex: station.colorHex,
+                initialHotkey: station.hotkeyConfig
+            ) { name, url, colorHex, hotkey in
                 var updated = station
-                updated.name = name; updated.url = url; updated.colorHex = colorHex
+                updated.name = name; updated.url = url
+                updated.colorHex = colorHex; updated.hotkeyConfig = hotkey
                 store.updateStation(updated)
                 editing = nil
             } onCancel: { editing = nil }
@@ -79,8 +95,9 @@ private struct StationsTab: View {
             EditStationSheet(
                 title: "Neuen Sender hinzufügen",
                 initialName: "", initialURL: "", initialColorHex: "#007AFF"
-            ) { name, url, colorHex in
-                store.addStation(Station(name: name, url: url, colorHex: colorHex))
+            ) { name, url, colorHex, hotkey in
+                store.addStation(Station(name: name, url: url,
+                                        colorHex: colorHex, hotkeyConfig: hotkey))
                 isAdding = false
             } onCancel: { isAdding = false }
         }
@@ -100,15 +117,44 @@ private struct HotkeysTab: View {
                         hotkeys.updateMute(cfg)
                     }
                 }
-                LabeledContent("Nächsten Sender spielen") {
+            } header: {
+                Text("Wiedergabe")
+            }
+
+            Section {
+                LabeledContent("Nächsten Sender") {
                     KeyRecorderButton(config: $hotkeys.cycleConfig) { cfg in
                         hotkeys.updateCycle(cfg)
                     }
                 }
+                LabeledContent("Vorherigen Sender") {
+                    KeyRecorderButton(config: $hotkeys.cycleBackConfig) { cfg in
+                        hotkeys.updateCycleBack(cfg)
+                    }
+                }
             } header: {
-                Text("Globale Tastenkürzel")
+                Text("Sender wechseln")
             } footer: {
-                Text("Tastenkürzel funktionieren auch wenn RadioBar nicht im Vordergrund ist.\nDer Sender-Hotkey läuft durch alle konfigurierten Sender und beginnt wieder von vorn.")
+                Text("Läuft durch alle konfigurierten Sender und beginnt wieder von vorn.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Lauter") {
+                    KeyRecorderButton(config: $hotkeys.volumeUpConfig) { cfg in
+                        hotkeys.updateVolumeUp(cfg)
+                    }
+                }
+                LabeledContent("Leiser") {
+                    KeyRecorderButton(config: $hotkeys.volumeDownConfig) { cfg in
+                        hotkeys.updateVolumeDown(cfg)
+                    }
+                }
+            } header: {
+                Text("Lautstärke")
+            } footer: {
+                Text("Ändert die Lautstärke in 5 %-Schritten. Funktioniert auch im Hintergrund.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -164,22 +210,24 @@ private struct StationListRow: View {
 
 struct EditStationSheet: View {
     let title: String
-    var onSave:   (String, String, String) -> Void
+    var onSave:   (String, String, String, HotkeyConfig?) -> Void
     var onCancel: () -> Void
 
-    @State private var name:     String
-    @State private var url:      String
-    @State private var colorHex: String
-    @State private var urlError: String? = nil
+    @State private var name:         String
+    @State private var url:          String
+    @State private var colorHex:     String
+    @State private var hotkeyConfig: HotkeyConfig
+    @State private var urlError:     String? = nil
 
     init(title: String, initialName: String, initialURL: String,
-         initialColorHex: String,
-         onSave: @escaping (String, String, String) -> Void,
+         initialColorHex: String, initialHotkey: HotkeyConfig? = nil,
+         onSave: @escaping (String, String, String, HotkeyConfig?) -> Void,
          onCancel: @escaping () -> Void) {
         self.title = title; self.onSave = onSave; self.onCancel = onCancel
-        _name     = State(initialValue: initialName)
-        _url      = State(initialValue: initialURL)
-        _colorHex = State(initialValue: initialColorHex)
+        _name         = State(initialValue: initialName)
+        _url          = State(initialValue: initialURL)
+        _colorHex     = State(initialValue: initialColorHex)
+        _hotkeyConfig = State(initialValue: initialHotkey ?? .disabled)
     }
 
     var body: some View {
@@ -215,6 +263,9 @@ struct EditStationSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                LabeledContent("Globales Kürzel") {
+                    KeyRecorderButton(config: $hotkeyConfig) { _ in }
+                }
             }
             .padding(.bottom, 20)
 
@@ -225,7 +276,8 @@ struct EditStationSheet: View {
                     guard validate() else { return }
                     onSave(name.trimmingCharacters(in: .whitespaces),
                            url.trimmingCharacters(in: .whitespaces),
-                           colorHex)
+                           colorHex,
+                           hotkeyConfig.isEnabled ? hotkeyConfig : nil)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty ||

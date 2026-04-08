@@ -5,12 +5,15 @@ struct Station: Codable, Identifiable, Equatable, Sendable {
     var name: String
     var url: String
     var colorHex: String
+    var hotkeyConfig: HotkeyConfig?
 
-    init(id: UUID = UUID(), name: String, url: String, colorHex: String = "#007AFF") {
+    init(id: UUID = UUID(), name: String, url: String,
+         colorHex: String = "#007AFF", hotkeyConfig: HotkeyConfig? = nil) {
         self.id = id
         self.name = name
         self.url = url
         self.colorHex = colorHex
+        self.hotkeyConfig = hotkeyConfig
     }
 
     var color: Color {
